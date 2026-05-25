@@ -9,7 +9,7 @@ import traceback
 from datetime import datetime
 import pytz
 
-import snaptrade_client
+import robinhood_client
 import market_data
 import brief_generator
 import telegram_sender
@@ -23,7 +23,7 @@ def run_brief() -> str:
 
     print(f"[{now}] Fetching portfolio from SnapTrade...")
     try:
-        portfolio = snaptrade_client.get_portfolio()
+        portfolio = robinhood_client.get_portfolio()
     except Exception as exc:
         msg = f"SnapTrade error: {exc}\nUsing empty portfolio — check credentials."
         print(msg)
