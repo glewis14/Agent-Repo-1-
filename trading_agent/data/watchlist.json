@@ -1,0 +1,82 @@
+[
+  {
+    "ticker": "KTOS",
+    "name": "Kratos Defense",
+    "sector": "Defense / Drones",
+    "signal_type": "Social Arb T2",
+    "trigger": "$28-30",
+    "status": "ACTIVE",
+    "notes": "DoD drone budget +53% YoY. Pure-play autonomous systems. Low analyst coverage. SAM.gov award cadence accelerating.",
+    "added": "2026-05-17"
+  },
+  {
+    "ticker": "CDRE",
+    "name": "Cadre Holdings",
+    "sector": "Defense / Safety",
+    "signal_type": "Social Arb T2",
+    "trigger": "RSI<40",
+    "status": "WATCH",
+    "notes": "Record backlog $355M (up from $166M). Q1 rev +19% YoY. Await RSI pullback before entry.",
+    "added": "2026-05-17"
+  },
+  {
+    "ticker": "RCAT",
+    "name": "Red Cat Holdings",
+    "sector": "Defense / Drones",
+    "signal_type": "Social Arb T2",
+    "trigger": "<$8",
+    "status": "WATCH",
+    "notes": "Q4 2025 rev +1,510% YoY. Highly speculative. 5% max size. Await consolidation post-run.",
+    "added": "2026-05-17"
+  },
+  {
+    "ticker": "RDW",
+    "name": "Redwire Corp",
+    "sector": "Defense / Space",
+    "signal_type": "Social Arb T2",
+    "trigger": "<$10",
+    "status": "WATCH",
+    "notes": "$411M backlog. DARPA Otter contract. Speculative. Monitor guidance and contract announcements.",
+    "added": "2026-05-17"
+  },
+  {
+    "ticker": "AVAV",
+    "name": "AeroVironment",
+    "sector": "Defense / UAS",
+    "signal_type": "RSI Reversion",
+    "trigger": "RSI<40",
+    "status": "WATCH",
+    "notes": "UAS pure play. BlueHalo acquisition expanding TAM into larger drones and autonomous water systems.",
+    "added": "2026-05-17"
+  },
+  {
+    "ticker": "DCO",
+    "name": "Ducommun",
+    "sector": "Aerospace Mfg",
+    "signal_type": "RSI Reversion",
+    "trigger": "<$55",
+    "status": "WATCH",
+    "notes": "Aerospace manufacturing small cap. Under-covered. Monitor earnings and defense contract mix.",
+    "added": "2026-05-17"
+  },
+  {
+    "ticker": "VRT",
+    "name": "Vertiv Holdings",
+    "sector": "Mfg Tech / AI Infra",
+    "signal_type": "RSI Reversion T3",
+    "trigger": "~$350",
+    "status": "ACTIVE",
+    "notes": "AI data center cooling demand structural. Adding to existing 2-share position on pullbacks.",
+    "added": "2026-05-17"
+  },
+  {
+    "ticker": "ON",
+    "name": "ON Semiconductor",
+    "sector": "Mfg Tech / EV",
+    "signal_type": "RSI Reversion T3",
+    "trigger": "<$45",
+    "status": "WATCH",
+    "notes": "EV and industrial automation play. RSI watch. Wait for confirmed oversold setup above 150-day MA.",
+    "added": "2026-05-17"
+  }
+]

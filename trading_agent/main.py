@@ -1,0 +1,68 @@
+"""
+Entry point for the daily trading brief.
+Called by Windows Task Scheduler at 7:00 AM CST every weekday.
+Also called by bot_listener.py on /brief command.
+"""
+
+import sys
+import traceback
+from datetime import datetime
+import pytz
+
+import snaptrade_client
+import market_data
+import brief_generator
+import telegram_sender
+import store
+
+
+def run_brief() -> str:
+    """Fetch data, generate brief, return text (and send to Telegram)."""
+    cst = pytz.timezone("America/Chicago")
+    now = datetime.now(cst).strftime("%Y-%m-%d %H:%M CST")
+
+    print(f"[{now}] Fetching portfolio from SnapTrade...")
+    try:
+        portfolio = snaptrade_client.get_portfolio()
+    except Exception as exc:
+        msg = f"SnapTrade error: {exc}\nUsing empty portfolio — check credentials."
+        print(msg)
+        telegram_sender.send(f"[TRADING AGENT ERROR]\n{msg}")
+        return msg
+
+    # Collect all tickers to fetch technicals for
+    stock_tickers   = [s["ticker"] for s in portfolio["stocks"]]
+    option_tickers  = list({o["underlying"] for o in portfolio["options"]})
+    watchlist       = store.load_watchlist()
+    watch_tickers   = [w["ticker"] for w in watchlist]
+    all_tickers     = list(dict.fromkeys(stock_tickers + option_tickers + watch_tickers))
+
+    print(f"[{now}] Fetching technicals for {len(all_tickers)} tickers...")
+    technicals = market_data.get_bulk_technicals(all_tickers)
+
+    last_log = store.load_last_log()
+
+    print(f"[{now}] Generating brief via Claude API...")
+    brief = brief_generator.generate_brief(portfolio, technicals, watchlist, last_log)
+
+    # Save a stub log entry (proposals extracted from brief on next run if needed)
+    store.save_log_entry(date=now, proposals=["[see brief above]"])
+
+    print(f"[{now}] Sending to Telegram...")
+    telegram_sender.send(brief)
+    print(f"[{now}] Done.")
+
+    return brief
+
+
+if __name__ == "__main__":
+    try:
+        run_brief()
+    except Exception:
+        msg = f"[TRADING AGENT UNHANDLED ERROR]\n{traceback.format_exc()}"
+        print(msg, file=sys.stderr)
+        try:
+            telegram_sender.send(msg)
+        except Exception:
+            pass
+        sys.exit(1)
