@@ -9,7 +9,7 @@ def _require(key: str) -> str:
         raise EnvironmentError(f"Missing required env var: {key}")
     return val
 
-ANTHROPIC_API_KEY     = _require("ANTHROPIC_API_KEY")
+ANTHROPIC_API_KEY     = os.getenv("ANTHROPIC_API_KEY", "")  # optional — using Claude Code CLI
 TELEGRAM_BOT_TOKEN    = _require("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID      = _require("TELEGRAM_CHAT_ID")
 SNAPTRADE_CLIENT_ID   = _require("SNAPTRADE_CLIENT_ID")
