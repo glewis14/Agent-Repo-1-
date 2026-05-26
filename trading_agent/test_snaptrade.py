@@ -1,18 +1,13 @@
 """
-SnapTrade connection test — run this on your Windows machine.
-
-Usage:
-  set SNAPTRADE_CLIENT_ID=PERS-OA1P9AG1BZOU7SBQ5F57
-  set SNAPTRADE_CONSUMER_KEY=VazVIEZECcSDM7S4T9PnphWrFW81CRd3bzOoAgLPCm71BLIcYu
-  set SNAPTRADE_USER_ID=<your user id>
-  set SNAPTRADE_USER_SECRET=87bba2a9-6f30-4f6b-a6a1-54266422b0f8
-  python test_snaptrade.py
-
-Or just paste your credentials directly into the variables below.
+SnapTrade connection test — uses per-account endpoints (get_all_user_holdings is gone).
 """
 
-import os, json
+import json
 from snaptrade_client import SnapTrade
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 CLIENT_ID    = os.getenv("SNAPTRADE_CLIENT_ID",    "PERS-OA1P9AG1BZOU7SBQ5F57")
 CONSUMER_KEY = os.getenv("SNAPTRADE_CONSUMER_KEY", "VazVIEZECcSDM7S4T9PnphWrFW81CRd3bzOoAgLPCm71BLIcYu")
@@ -21,35 +16,42 @@ USER_SECRET  = os.getenv("SNAPTRADE_USER_SECRET",  "87bba2a9-6f30-4f6b-a6a1-5426
 
 api = SnapTrade(consumer_key=CONSUMER_KEY, client_id=CLIENT_ID)
 
-print("\n── 1. API Status ─────────────────────────────────────────────")
-try:
-    r = api.api_status.check()
-    print(" ", r.body)
-except Exception as e:
-    print(f"  FAILED: {e}")
+# ── Get accounts ──────────────────────────────────────────────────────────────
+print("\n── Accounts ──────────────────────────────────────────────────")
+accounts = api.account_information.list_user_accounts(
+    user_id=USER_ID, user_secret=USER_SECRET
+).body
+for acct in accounts:
+    print(f"  {acct['name']} | id: {acct['id']} | balance: ${acct['balance']['total']['amount']:,.2f}")
 
-print("\n── 2. Registered Users (find your USER_ID here) ──────────────")
-try:
-    r = api.authentication.list_snap_trade_users()
-    print(" ", r.body)
-except Exception as e:
-    print(f"  FAILED: {e}")
+# ── Per-account positions and balances ────────────────────────────────────────
+for acct in accounts:
+    acct_id   = acct["id"]
+    acct_name = acct["name"]
 
-if not USER_ID:
-    print("\nSet USER_ID above from the list, then re-run for full holdings.")
-    exit(0)
+    print(f"\n── {acct_name} — Positions ────────────────────────────────")
+    try:
+        positions = api.account_information.get_user_account_positions(
+            user_id=USER_ID, user_secret=USER_SECRET, account_id=acct_id
+        ).body
+        print(json.dumps(positions, indent=2, default=str))
+    except Exception as e:
+        print(f"  FAILED: {e}")
 
-print("\n── 3. Accounts ───────────────────────────────────────────────")
-try:
-    r = api.account_information.list_user_accounts(user_id=USER_ID, user_secret=USER_SECRET)
-    for acct in (r.body or []):
-        print(f"  {acct}")
-except Exception as e:
-    print(f"  FAILED: {e}")
+    print(f"\n── {acct_name} — Balance ──────────────────────────────────")
+    try:
+        balance = api.account_information.get_user_account_balance(
+            user_id=USER_ID, user_secret=USER_SECRET, account_id=acct_id
+        ).body
+        print(json.dumps(balance, indent=2, default=str))
+    except Exception as e:
+        print(f"  FAILED: {e}")
 
-print("\n── 4. Full Holdings (raw JSON) ───────────────────────────────")
-try:
-    r = api.account_information.get_all_user_holdings(user_id=USER_ID, user_secret=USER_SECRET)
-    print(json.dumps(r.body, indent=2, default=str))
-except Exception as e:
-    print(f"  FAILED: {e}")
+    print(f"\n── {acct_name} — Options ──────────────────────────────────")
+    try:
+        options = api.options.list_option_holdings(
+            user_id=USER_ID, user_secret=USER_SECRET, account_id=acct_id
+        ).body
+        print(json.dumps(options, indent=2, default=str))
+    except Exception as e:
+        print(f"  FAILED: {e}")
