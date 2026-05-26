@@ -1,5 +1,6 @@
 """Pulls live portfolio data from Robinhood via SnapTrade API."""
 
+from datetime import date
 import config
 from snaptrade_client import SnapTrade
 
@@ -11,83 +12,123 @@ def _init():
     )
 
 
+def _get_accounts(api, uid, usec):
+    return api.account_information.list_user_accounts(
+        user_id=uid, user_secret=usec
+    ).body or []
+
+
 def get_portfolio() -> dict:
     """
     Returns:
         {
-            "stocks": [{"ticker": str, "shares": float, "price": float, "value": float}],
-            "options": [{"symbol": str, "strike": float, "expiry": str, "contracts": int,
-                         "cost_basis": float, "market_value": float, "dte": int}],
-            "crypto":  [{"symbol": str, "quantity": float, "price": float, "value": float}],
+            "stocks":  [{"ticker", "shares", "price", "value", "avg_cost"}],
+            "options": [{"symbol", "underlying", "strike", "expiry", "opt_type",
+                         "contracts", "cost_basis", "market_value", "dte"}],
+            "crypto":  [{"symbol", "quantity", "price", "value", "avg_cost"}],
             "cash":    float,
             "total":   float,
+            "accounts": [{"name", "id", "total"}],
         }
     """
-    api = _init()
-    uid = config.SNAPTRADE_USER_ID
-    usec = config.SNAPTRADE_USER_SECRET
+    api   = _init()
+    uid   = config.SNAPTRADE_USER_ID
+    usec  = config.SNAPTRADE_USER_SECRET
 
-    raw = api.account_information.get_all_user_holdings(
-        user_id=uid,
-        user_secret=usec,
-    ).body
-
+    accounts = _get_accounts(api, uid, usec)
     stocks, options, crypto = [], [], []
     cash_total = 0.0
+    account_summaries = []
 
-    for account_data in raw:
-        # ── Balances ──────────────────────────────────────────────
-        for bal in (account_data.get("balances") or []):
-            currency = (bal.get("currency") or {}).get("code", "")
-            if currency == "USD":
-                cash_total += float(bal.get("cash", 0) or 0)
+    for acct in accounts:
+        acct_id   = acct["id"]
+        acct_name = acct["name"]
+        acct_total = float((acct.get("balance") or {}).get("total", {}).get("amount", 0) or 0)
+        account_summaries.append({"name": acct_name, "id": acct_id, "total": acct_total})
 
-        # ── Equity positions ──────────────────────────────────────
-        for pos in (account_data.get("positions") or []):
-            sym_obj  = pos.get("symbol") or {}
-            symbol   = sym_obj.get("symbol", "") if isinstance(sym_obj, dict) else str(sym_obj)
-            units    = float(pos.get("units", 0) or 0)
-            price    = float(pos.get("price", 0) or 0)
-            value    = units * price
+        # ── Cash balance ──────────────────────────────────────────────────────
+        try:
+            balances = api.account_information.get_user_account_balance(
+                user_id=uid, user_secret=usec, account_id=acct_id
+            ).body or []
+            for bal in balances:
+                if (bal.get("currency") or {}).get("code") == "USD":
+                    cash_total += float(bal.get("cash", 0) or 0)
+        except Exception:
+            pass
 
-            # SnapTrade marks crypto tickers with a type field or separate section
-            asset_type = (sym_obj.get("type") or "") if isinstance(sym_obj, dict) else ""
-            if asset_type.upper() in ("CRYPTO", "CRYPTOCURRENCY"):
-                crypto.append({"symbol": symbol, "quantity": units,
-                                "price": price, "value": value})
-            else:
-                stocks.append({"ticker": symbol, "shares": units,
-                                "price": price, "value": value})
+        # ── Stock / crypto positions ──────────────────────────────────────────
+        try:
+            positions = api.account_information.get_user_account_positions(
+                user_id=uid, user_secret=usec, account_id=acct_id
+            ).body or []
 
-        # ── Option positions ──────────────────────────────────────
-        for opt in (account_data.get("option_positions") or []):
-            sym_obj      = opt.get("symbol") or {}
-            underlying   = (sym_obj.get("underlying_symbol") or {}).get("symbol", "?")
-            strike       = float((sym_obj.get("strike_price") or 0))
-            expiry       = sym_obj.get("expiration_date", "?")
-            opt_type     = sym_obj.get("option_type", "?")
-            contracts    = float(opt.get("units", 0) or 0)
-            mkt_val      = float(opt.get("price", 0) or 0) * contracts * 100
-            cost         = float(opt.get("average_purchase_price", 0) or 0) * contracts * 100
+            for pos in positions:
+                # Field path confirmed from live API: pos["symbol"]["symbol"]
+                sym_info   = (pos.get("symbol") or {}).get("symbol") or {}
+                ticker     = sym_info.get("symbol", "?")
+                asset_code = (sym_info.get("type") or {}).get("code", "")
+                units      = float(pos.get("units") or 0)
+                price      = float(pos.get("price") or 0)
+                avg_cost   = float(pos.get("average_purchase_price") or 0)
+                value      = units * price
 
-            from datetime import date
-            try:
-                exp_date = date.fromisoformat(expiry)
-                dte = (exp_date - date.today()).days
-            except Exception:
-                dte = -1
+                if asset_code == "crypto":
+                    crypto.append({
+                        "symbol":   ticker,
+                        "quantity": units,
+                        "price":    price,
+                        "value":    value,
+                        "avg_cost": avg_cost,
+                    })
+                else:
+                    stocks.append({
+                        "ticker":   ticker,
+                        "shares":   units,
+                        "price":    price,
+                        "value":    value,
+                        "avg_cost": avg_cost,
+                    })
+        except Exception:
+            pass
 
-            options.append({
-                "symbol":       f"{underlying} ${int(strike)}{opt_type[0].upper()} exp {expiry}",
-                "underlying":   underlying,
-                "strike":       strike,
-                "expiry":       expiry,
-                "opt_type":     opt_type,
-                "contracts":    int(contracts),
-                "cost_basis":   cost,
-                "market_value": mkt_val,
-                "dte":          dte,
-            })
+        # ── Options positions ─────────────────────────────────────────────────
+        try:
+            opts = api.options.list_option_holdings(
+                user_id=uid, user_secret=usec, account_id=acct_id
+            ).body or []
+
+            for opt in opts:
+                opt_sym    = (opt.get("symbol") or {}).get("option_symbol") or {}
+                underlying = (opt_sym.get("underlying_symbol") or {}).get("symbol", "?")
+                strike     = float(opt_sym.get("strike_price") or 0)
+                expiry     = opt_sym.get("expiration_date", "?")
+                opt_type   = opt_sym.get("option_type", "?")
+                contracts  = int(float(opt.get("units") or 0))
+                # price from API is per-contract value in dollars
+                mkt_val    = float(opt.get("price") or 0) * contracts
+                avg_price  = opt.get("average_purchase_price")
+                cost       = float(avg_price) * contracts if avg_price else 0.0
+
+                try:
+                    dte = (date.fromisoformat(expiry) - date.today()).days
+                except Exception:
+                    dte = -1
+
+                label = f"{underlying} ${int(strike)}{opt_type[0].upper()} exp {expiry}"
+                options.append({
+                    "symbol":       label,
+                    "underlying":   underlying,
+                    "strike":       strike,
+                    "expiry":       expiry,
+                    "opt_type":     opt_type,
+                    "contracts":    contracts,
+                    "cost_basis":   cost,
+                    "market_value": mkt_val,
+                    "dte":          dte,
+                })
+        except Exception:
+            pass
 
     total = (sum(s["value"] for s in stocks)
              + sum(o["market_value"] for o in options)
@@ -95,9 +136,10 @@ def get_portfolio() -> dict:
              + cash_total)
 
     return {
-        "stocks":  stocks,
-        "options": options,
-        "crypto":  crypto,
-        "cash":    cash_total,
-        "total":   total,
+        "stocks":   stocks,
+        "options":  options,
+        "crypto":   crypto,
+        "cash":     cash_total,
+        "total":    total,
+        "accounts": account_summaries,
     }
