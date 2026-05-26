@@ -16,7 +16,7 @@ from snaptrade_client import SnapTrade
 
 CLIENT_ID    = os.getenv("SNAPTRADE_CLIENT_ID",    "PERS-OA1P9AG1BZOU7SBQ5F57")
 CONSUMER_KEY = os.getenv("SNAPTRADE_CONSUMER_KEY", "VazVIEZECcSDM7S4T9PnphWrFW81CRd3bzOoAgLPCm71BLIcYu")
-USER_ID      = os.getenv("SNAPTRADE_USER_ID",      "")   # <-- fill this in
+USER_ID      = os.getenv("SNAPTRADE_USER_ID",      "graham-hermes-1")
 USER_SECRET  = os.getenv("SNAPTRADE_USER_SECRET",  "87bba2a9-6f30-4f6b-a6a1-54266422b0f8")
 
 api = SnapTrade(consumer_key=CONSUMER_KEY, client_id=CLIENT_ID)
