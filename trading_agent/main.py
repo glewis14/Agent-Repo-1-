@@ -15,9 +15,16 @@ import brief_generator
 import telegram_sender
 import store
 
+SECTION_LABELS = {
+    "portfolio_pulse": "-- PORTFOLIO PULSE --",
+    "option_pulse":    "-- OPTION PULSE --",
+    "allocations":     "-- ALLOCATIONS --",
+    "adjustments":     "-- ADJUSTMENT SUMMARY --",
+    "opportunities":   "-- NEW OPPORTUNITIES --",
+}
 
-def run_brief() -> str:
-    """Fetch data, generate brief, return text (and send to Telegram)."""
+
+def run_brief() -> None:
     cst = pytz.timezone("America/Chicago")
     now = datetime.now(cst).strftime("%Y-%m-%d %H:%M CST")
 
@@ -25,34 +32,35 @@ def run_brief() -> str:
     try:
         portfolio = robinhood_client.get_portfolio()
     except Exception as exc:
-        msg = f"SnapTrade error: {exc}\nUsing empty portfolio — check credentials."
+        msg = f"SnapTrade error: {exc}\nUsing empty portfolio -- check credentials."
         print(msg)
         telegram_sender.send(f"[TRADING AGENT ERROR]\n{msg}")
-        return msg
+        return
 
-    # Collect all tickers to fetch technicals for
-    stock_tickers   = [s["ticker"] for s in portfolio["stocks"]]
-    option_tickers  = list({o["underlying"] for o in portfolio["options"]})
-    watchlist       = store.load_watchlist()
-    watch_tickers   = [w["ticker"] for w in watchlist]
-    all_tickers     = list(dict.fromkeys(stock_tickers + option_tickers + watch_tickers))
+    stock_tickers  = [s["ticker"] for s in portfolio["stocks"]]
+    option_tickers = list({o["underlying"] for o in portfolio["options"]})
+    watchlist      = store.load_watchlist()
+    watch_tickers  = [w["ticker"] for w in watchlist]
+    all_tickers    = list(dict.fromkeys(stock_tickers + option_tickers + watch_tickers))
 
     print(f"[{now}] Fetching technicals for {len(all_tickers)} tickers...")
     technicals = market_data.get_bulk_technicals(all_tickers)
 
     last_log = store.load_last_log()
 
-    print(f"[{now}] Generating brief via Claude API...")
-    brief = brief_generator.generate_brief(portfolio, technicals, watchlist, last_log)
+    print(f"[{now}] Generating brief via Claude...")
+    sections = brief_generator.generate_brief(portfolio, technicals, watchlist, last_log)
 
-    # Save a stub log entry (proposals extracted from brief on next run if needed)
     store.save_log_entry(date=now, proposals=["[see brief above]"])
 
     print(f"[{now}] Sending to Telegram...")
-    telegram_sender.send(brief)
-    print(f"[{now}] Done.")
+    telegram_sender.send(f"TRADING BRIEF -- {now}")
+    for key in ["portfolio_pulse", "option_pulse", "allocations", "adjustments", "opportunities"]:
+        content = sections.get(key, "").strip()
+        if content:
+            telegram_sender.send(f"{SECTION_LABELS[key]}\n\n{content}")
 
-    return brief
+    print(f"[{now}] Done.")
 
 
 if __name__ == "__main__":
