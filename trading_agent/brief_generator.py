@@ -72,6 +72,9 @@ def _parse_sections(text):
     for i in range(1, len(parts), 2):
         key = parts[i].lower()
         sections[key] = parts[i + 1].strip() if i + 1 < len(parts) else ""
+    if not sections:
+        # Model didn't use section markers — put full text under a fallback key
+        sections["_raw"] = text.strip()
     return sections
 
 

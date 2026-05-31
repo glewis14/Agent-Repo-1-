@@ -54,11 +54,15 @@ def run_brief() -> None:
     store.save_log_entry(date=now, proposals=["[see brief above]"])
 
     print(f"[{now}] Sending to Telegram...")
-    telegram_sender.send(f"TRADING BRIEF -- {now}")
-    for key in ["portfolio_pulse", "option_pulse", "allocations", "adjustments", "opportunities"]:
-        content = sections.get(key, "").strip()
-        if content:
-            telegram_sender.send(f"{SECTION_LABELS[key]}\n\n{content}")
+    if "_raw" in sections:
+        # Section parsing failed — send raw output split across messages
+        telegram_sender.send(f"TRADING BRIEF -- {now}\n\n{sections['_raw']}")
+    else:
+        telegram_sender.send(f"TRADING BRIEF -- {now}")
+        for key in ["portfolio_pulse", "option_pulse", "allocations", "adjustments", "opportunities"]:
+            content = sections.get(key, "").strip()
+            if content:
+                telegram_sender.send(f"{SECTION_LABELS[key]}\n\n{content}")
 
     print(f"[{now}] Done.")
 
