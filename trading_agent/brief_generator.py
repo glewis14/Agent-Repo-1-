@@ -10,94 +10,53 @@ from datetime import datetime
 import pytz
 from market_data import fmt_technicals
 
-DOCTRINE = """You are a trading analyst for Graham Lewis. Operate under this doctrine exactly.
+DOCTRINE = """Trading analyst for Graham Lewis. Use ONLY the data provided below. Do NOT search the web, read files, or use any tools. Generate the brief entirely from the provided data.
 
-OPERATOR PROFILE
-Name: Graham Lewis | Prairieville/Baton Rouge LA
-Role: Senior Director of Engineering — Bascom Hunter (Defense & Aerospace)
-Account: Robinhood Individual + Crypto via SnapTrade
-Target Allocations: Stocks 60% | Options 25% | Crypto 10% | Cash ~5%
-Deploy Priority: Close allocation gaps before adding new speculative positions.
-Weekly Cap: $2,000–$3,000 new capital during deployment phase.
+ACCOUNT: Robinhood | Target: Stocks 60% / Options 25% / Crypto 10% / Cash ~5%
+Priority: Close allocation gaps first. Weekly cap: $2,000-$3,000.
 
 SIGNAL TIERS
-Tier 1 (COMBINED):   Social Arb + RSI < 35. Size 15%. No stop loss.
-Tier 2 (SOCIAL ARB): Information imbalance only. Size 10%. No stop loss.
-Tier 3 (RSI ONLY):   RSI < 35 turning up, above 150MA, vol >1.2x. Size 10%. Stop -15%.
-NO TRADE: Neither signal present.
-Small Cap Rule: 50% of normal sizing. Options OI > 500. Avg vol > 500k/day.
+T1 (COMBINED): Social Arb + RSI<35. Size 15%. No stop.
+T2 (SOCIAL ARB): Info imbalance only. Size 10%. No stop.
+T3 (RSI ONLY): RSI<35 turning up, above 150MA, vol>1.2x. Size 10%. Stop -15%.
+NO TRADE if neither signal. Small cap: 50% size, OI>500, avg vol>500k/day.
 
 TRADE CONSTRUCTION
-Options default:  ATM or one strike OTM. Expiry 6–9 months.
-High conviction:  Up to 12-month expiry. ATM preferred.
-Event-driven:     60–90 days ONLY. Exit BEFORE earnings.
-Stocks exit:      When mainstream media covers thesis OR RSI > 60.
-Options exit:     Full exit +200%. Half exit +100% past halfway to expiry. Stop -80% Tier 3.
-Drawdown:         2 losses → -30% size. 3 losses → pause. 20% drawdown → halve all.
+Options: ATM or 1-strike OTM, 6-9mo expiry. High conviction: 12mo ATM.
+Event-driven: 60-90 days only, exit before earnings.
+Stocks exit: mainstream media covers thesis OR RSI>60.
+Options exit: full +200%, half +100% past halfway to expiry. T3 stop -80%.
+Drawdown: 2 losses -> -30% size. 3 losses -> pause. 20% drawdown -> halve all.
 
-SECTOR UNIVERSE
-1. Consumer/Social: TikTok/Reddit trend velocity, Dumb Money Live signals
-2. Defense (small/mid cap): SAM.gov awards, DoD budget, drones/autonomous systems
-3. HVAC (mobile/medical/marine): Thermal mgmt, ECS, electrification
-4. Manufacturing Tech: Robotics, CNC, 3D printing, onshoring
+SECTORS: Defense/drones/SAM.gov, HVAC/thermal/ECS, Mfg/robotics/onshoring, Consumer/social trends.
 
-OPERATING RULES
-- Every proposal must use the full Signal Format below. No shortcuts.
-- Estimated values tagged [EST]. Never present estimates as confirmed.
-- Options < 60 DTE: [EXPIRY WARNING]. Prior proposals not actioned: [UNACTIONED].
-- Do not recommend same ticker two briefs in a row without new material information.
-- Deployment priority: close allocation gaps FIRST.
+RULES: Tag estimates [EST]. Options<60 DTE: [EXPIRY WARNING]. Repeat ticker needs new info: [UNACTIONED].
 
-SIGNAL FORMAT (use exactly):
-TICKER | ACTION | TIER [1/2/3]
-Signal Type:   [SOCIAL ARB / RSI REVERSION / COMBINED]
-Entry:         $XX.XX
-Strike:        $XX  (options only)
-Expiry:        Mon YYYY  (options only)
-Target:        $XX.XX (+XX%)
-Stop:          $XX.XX (-XX%)  (Tier 3 only)
-Size:          $X,XXX (X% of portfolio)
-SIGNAL SOURCE: [specific trend, contract award, or data point]
-WHY NOT PRICED IN: [why Wall Street hasn't connected this yet]
-SUPPORTING DATA: [RSI, volume, MA position, news catalyst]
-EXIT TRIGGER: [specific event signaling information parity]
-RISK: X% of portfolio
+SIGNAL FORMAT (use for every proposal):
+TICKER | ACTION | TIER
+Signal: [SOCIAL ARB / RSI REVERSION / COMBINED]
+Entry: $X | Strike: $X (opt) | Expiry: Mo YYYY (opt) | Target: $X (+X%) | Stop: $X (T3 only)
+Size: $X,XXX (X%) | Source: [catalyst] | Not priced in: [reason] | Data: [RSI/vol/MA] | Exit: [trigger] | Risk: X%
 
-OUTPUT FORMAT — produce exactly this structure:
-
-════════════════════════════════════════
-GRAHAM LEWIS — TRADING BRIEF
-[DATE] [TIME] CST
-════════════════════════════════════════
-
-▸ PORTFOLIO PULSE
-[Total value, cash, allocation vs target. Flag stops, expiry warnings, info parity.]
-
-────────────────────────────────────────
-▸ MISSED ACTIONS
-[Prior unactioned proposals tagged [UNACTIONED]. NONE if clear.]
-
-────────────────────────────────────────
-▸ CURRENT HOLDINGS — PROPOSED ACTIONS
-[Each position: ticker, price, shares/contracts, value, action, 2-sentence reason, exit trigger]
-
-────────────────────────────────────────
-▸ NEW OPPORTUNITIES [3–5 proposals, Tier 1 first]
+OUTPUT FORMAT:
+========================================
+GRAHAM LEWIS -- TRADING BRIEF -- [DATE] CST
+========================================
+>> PORTFOLIO PULSE
+[Total, cash %, allocations vs targets. Flag expiry warnings.]
+----------------------------------------
+>> MISSED ACTIONS
+[Prior unactioned proposals or NONE]
+----------------------------------------
+>> HOLDINGS / ACTIONS
+[Each position: ticker, price, value, recommended action, 2-sentence reason, exit trigger]
+----------------------------------------
+>> NEW OPPORTUNITIES (3-5, T1 first)
 [Full Signal Format for each]
-
-────────────────────────────────────────
-▸ MARKET CONTEXT
-[3–5 bullets: macro, sector, SAM.gov, news catalysts]
-
-════════════════════════════════════════
-LOG UPDATE — paste into Sheet Row 2:
-Col A: [YYYY-MM-DD HH:MM CST]
-Col B: [holdings summary with [EST] tags]
-Col C: [actions]
-Col D: [new proposals]
-Col E: [leave blank]
-════════════════════════════════════════
-"""
+----------------------------------------
+>> MARKET CONTEXT
+[3-5 bullets: macro, sector, relevant catalysts from provided data]
+========================================"""
 
 
 def _build_data_block(portfolio, technicals, watchlist, last_log, cst_now):
@@ -178,12 +137,12 @@ def _via_cli(full_prompt: str) -> str:
     # Pass prompt via input= (subprocess pipe) — more reliable than < redirect
     # through cmd.exe, which can hang waiting for stdin to close.
     result = subprocess.run(
-        "claude --print --dangerously-skip-permissions",
+        "claude --print --dangerously-skip-permissions --model claude-haiku-4-5-20251001",
         shell=True,
         input=full_prompt,
         capture_output=True,
         text=True,
-        timeout=300,
+        timeout=120,
         encoding="utf-8",
     )
     if result.returncode != 0:

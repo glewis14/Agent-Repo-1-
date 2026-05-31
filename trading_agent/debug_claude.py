@@ -31,11 +31,11 @@ except Exception as e:
     print(f"  FAILED: {e}")
 print()
 
-# Test 2: input= pipe approach (what brief_generator now uses)
-print("Test 2: input= pipe (what brief_generator uses)...")
+# Test 2: input= pipe with Haiku (what brief_generator now uses)
+print("Test 2: input= pipe + Haiku model (what brief_generator uses)...")
 try:
     r = subprocess.run(
-        "claude --print --dangerously-skip-permissions",
+        "claude --print --dangerously-skip-permissions --model claude-haiku-4-5-20251001",
         shell=True,
         input="Say exactly: TRADING AGENT ONLINE",
         capture_output=True,
