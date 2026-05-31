@@ -154,21 +154,58 @@ def _build_data_block(portfolio, technicals, watchlist, last_log, cst_now):
     return "\n".join(lines)
 
 
+def _via_sdk(full_prompt: str) -> str:
+    import anthropic
+    import config
+    if not config.ANTHROPIC_API_KEY:
+        raise RuntimeError("No ANTHROPIC_API_KEY set")
+    client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+    response = client.messages.create(
+        model="claude-opus-4-7",
+        max_tokens=4096,
+        messages=[{"role": "user", "content": full_prompt}],
+    )
+    return response.content[0].text
+
+
+def _via_cli(full_prompt: str) -> str:
+    import shutil, tempfile, os
+    claude_path = shutil.which("claude") or shutil.which("claude.cmd")
+    if not claude_path:
+        raise RuntimeError("claude CLI not found in PATH")
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt",
+                                     delete=False, encoding="utf-8") as f:
+        f.write(full_prompt)
+        tmpfile = f.name
+
+    try:
+        with open(tmpfile, encoding="utf-8") as stdin_f:
+            result = subprocess.run(
+                [claude_path, "--print", "--dangerously-skip-permissions"],
+                stdin=stdin_f,
+                capture_output=True,
+                text=True,
+                timeout=180,
+                encoding="utf-8",
+            )
+        if result.returncode != 0:
+            raise RuntimeError(f"Claude CLI error:\n{result.stderr}")
+        return result.stdout.strip()
+    finally:
+        os.unlink(tmpfile)
+
+
 def generate_brief(portfolio, technicals, watchlist, last_log):
     cst = pytz.timezone("America/Chicago")
     cst_now = datetime.now(cst).strftime("%Y-%m-%d %H:%M CST")
 
     data_block = _build_data_block(portfolio, technicals, watchlist, last_log, cst_now)
-    full_prompt = f"{DOCTRINE}\n\n=== LIVE DATA FOR TODAY'S BRIEF ===\n{data_block}\n\nProduce the daily brief now."
+    full_prompt = (f"{DOCTRINE}\n\n"
+                   f"=== LIVE DATA FOR TODAY'S BRIEF ===\n{data_block}\n\n"
+                   f"Produce the daily brief now.")
 
-    result = subprocess.run(
-        ["claude", "-p", full_prompt],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-
-    if result.returncode != 0:
-        raise RuntimeError(f"Claude CLI error:\n{result.stderr}")
-
-    return result.stdout.strip()
+    import config
+    if config.ANTHROPIC_API_KEY:
+        return _via_sdk(full_prompt)
+    return _via_cli(full_prompt)
