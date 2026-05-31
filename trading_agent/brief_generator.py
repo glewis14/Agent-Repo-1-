@@ -169,34 +169,26 @@ def _via_sdk(full_prompt: str) -> str:
 
 
 def _via_cli(full_prompt: str) -> str:
-    import shutil, tempfile, os
+    import shutil
     # Verify claude is accessible (shutil.which finds .cmd on Windows too)
     if not (shutil.which("claude") or shutil.which("claude.cmd")):
         raise RuntimeError("claude CLI not found in PATH")
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt",
-                                     delete=False, encoding="utf-8") as f:
-        f.write(full_prompt)
-        tmpfile = f.name
-
-    try:
-        # shell=True required on Windows so .cmd batch files execute correctly;
-        # stdin redirection via < avoids interactive TTY issues.
-        safe = tmpfile.replace("\\", "/")
-        cmd = f'claude --print --dangerously-skip-permissions < "{safe}"'
-        result = subprocess.run(
-            cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=180,
-            encoding="utf-8",
-        )
-        if result.returncode != 0:
-            raise RuntimeError(f"Claude CLI error:\n{result.stderr}")
-        return result.stdout.strip()
-    finally:
-        os.unlink(tmpfile)
+    # shell=True required on Windows so .cmd batch files resolve correctly.
+    # Pass prompt via input= (subprocess pipe) — more reliable than < redirect
+    # through cmd.exe, which can hang waiting for stdin to close.
+    result = subprocess.run(
+        "claude --print --dangerously-skip-permissions",
+        shell=True,
+        input=full_prompt,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        encoding="utf-8",
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Claude CLI error:\n{result.stderr}")
+    return result.stdout.strip()
 
 
 def generate_brief(portfolio, technicals, watchlist, last_log):

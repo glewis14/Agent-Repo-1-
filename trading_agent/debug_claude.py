@@ -1,5 +1,5 @@
 """Debug script — run this to diagnose the claude CLI issue."""
-import subprocess, shutil, os, sys, tempfile
+import subprocess, shutil, os, sys
 
 print(f"Python: {sys.executable}")
 print(f"Platform: {sys.platform}")
@@ -20,8 +20,8 @@ print(f"npm claude.cmd exists: {os.path.exists(npm_claude)} → {npm_claude}")
 print(f"npm claude exists:     {os.path.exists(npm_claude2)} → {npm_claude2}")
 print()
 
-# Try running claude --version via shell=True
-print("Testing: subprocess shell=True...")
+# Test 1: claude --version
+print("Test 1: claude --version (shell=True)...")
 try:
     r = subprocess.run("claude --version", shell=True, capture_output=True, text=True, timeout=15)
     print(f"  returncode: {r.returncode}")
@@ -31,14 +31,32 @@ except Exception as e:
     print(f"  FAILED: {e}")
 print()
 
-# Try writing a simple prompt to temp file and running
-print("Testing: pipe prompt via temp file + shell=True...")
+# Test 2: input= pipe approach (what brief_generator now uses)
+print("Test 2: input= pipe (what brief_generator uses)...")
+try:
+    r = subprocess.run(
+        "claude --print --dangerously-skip-permissions",
+        shell=True,
+        input="Say exactly: TRADING AGENT ONLINE",
+        capture_output=True,
+        text=True,
+        timeout=60,
+        encoding="utf-8",
+    )
+    print(f"  returncode: {r.returncode}")
+    print(f"  stdout: {r.stdout.strip()[:200]}")
+    print(f"  stderr: {r.stderr.strip()[:200]}")
+except Exception as e:
+    print(f"  FAILED: {e}")
+print()
+
+# Test 3: < file redirect approach (old method for comparison)
+print("Test 3: < file redirect (old method)...")
+import tempfile
 try:
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
         f.write("Say exactly: TRADING AGENT ONLINE")
         tmpfile = f.name
-    print(f"  Temp file: {tmpfile}")
-
     cmd = f'claude --print --dangerously-skip-permissions < "{tmpfile}"'
     print(f"  Command: {cmd}")
     r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
