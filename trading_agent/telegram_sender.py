@@ -1,13 +1,12 @@
-"""Send messages to Telegram, splitting on 4096-char limit."""
+"""Sends messages to Telegram, splitting on the 4096-char limit."""
 
-import asyncio
-import telegram
+import requests
 import config
 
 MAX_LEN = 4096
 
 
-def _split(text: str, limit: int = MAX_LEN) -> list[str]:
+def _split(text, limit=MAX_LEN):
     if len(text) <= limit:
         return [text]
     chunks, buf = [], []
@@ -21,16 +20,17 @@ def _split(text: str, limit: int = MAX_LEN) -> list[str]:
     return chunks
 
 
-async def _send_async(text: str) -> None:
-    bot = telegram.Bot(token=config.TELEGRAM_BOT_TOKEN)
-    for chunk in _split(text):
-        await bot.send_message(
-            chat_id=config.TELEGRAM_CHAT_ID,
-            text=chunk,
-            parse_mode=None,
-        )
-
-
 def send(text: str) -> None:
-    """Synchronous wrapper — safe to call from main or cron context."""
-    asyncio.run(_send_async(text))
+    """Send message to Telegram using plain requests — no async needed."""
+    url = f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage"
+    for chunk in _split(text):
+        resp = requests.post(url, json={
+            "chat_id": config.TELEGRAM_CHAT_ID,
+            "text": chunk,
+        }, timeout=30)
+        if not resp.ok:
+            raise RuntimeError(f"Telegram error {resp.status_code}: {resp.text}")
+
+
+def send_test() -> None:
+    send("GL21ClaudeBot online. Trading agent connected.")
