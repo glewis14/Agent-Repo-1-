@@ -170,8 +170,8 @@ def _via_sdk(full_prompt: str) -> str:
 
 def _via_cli(full_prompt: str) -> str:
     import shutil, tempfile, os
-    claude_path = shutil.which("claude") or shutil.which("claude.cmd")
-    if not claude_path:
+    # Verify claude is accessible (shutil.which finds .cmd on Windows too)
+    if not (shutil.which("claude") or shutil.which("claude.cmd")):
         raise RuntimeError("claude CLI not found in PATH")
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt",
@@ -180,15 +180,18 @@ def _via_cli(full_prompt: str) -> str:
         tmpfile = f.name
 
     try:
-        with open(tmpfile, encoding="utf-8") as stdin_f:
-            result = subprocess.run(
-                [claude_path, "--print", "--dangerously-skip-permissions"],
-                stdin=stdin_f,
-                capture_output=True,
-                text=True,
-                timeout=180,
-                encoding="utf-8",
-            )
+        # shell=True required on Windows so .cmd batch files execute correctly;
+        # stdin redirection via < avoids interactive TTY issues.
+        safe = tmpfile.replace("\\", "/")
+        cmd = f'claude --print --dangerously-skip-permissions < "{safe}"'
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=180,
+            encoding="utf-8",
+        )
         if result.returncode != 0:
             raise RuntimeError(f"Claude CLI error:\n{result.stderr}")
         return result.stdout.strip()
