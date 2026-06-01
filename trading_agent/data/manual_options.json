@@ -1,0 +1,24 @@
+[
+  {
+    "symbol": "STLA $8C Jun 2027",
+    "underlying": "STLA",
+    "strike": 8.0,
+    "expiry": "2027-06-18",
+    "opt_type": "CALL",
+    "contracts": 1,
+    "cost_basis": 0.0,
+    "market_value": 0.0,
+    "note": "Fill in contracts, cost_basis ($), market_value ($) from your Robinhood account"
+  },
+  {
+    "symbol": "DRS $44C Jan 2027",
+    "underlying": "DRS",
+    "strike": 44.0,
+    "expiry": "2027-01-15",
+    "opt_type": "CALL",
+    "contracts": 1,
+    "cost_basis": 0.0,
+    "market_value": 0.0,
+    "note": "Fill in contracts, cost_basis ($), market_value ($) from your Robinhood account"
+  }
+]

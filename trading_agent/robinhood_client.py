@@ -1,6 +1,8 @@
 """Pulls live portfolio data from Robinhood via SnapTrade API."""
 
 from datetime import date
+import json
+import os
 import config
 from snaptrade_client import SnapTrade
 
@@ -129,6 +131,20 @@ def get_portfolio() -> dict:
                 })
         except Exception:
             pass
+
+    # Merge manually tracked options (positions SnapTrade may not return)
+    manual_path = os.path.join(os.path.dirname(__file__), "data", "manual_options.json")
+    if os.path.exists(manual_path):
+        with open(manual_path) as f:
+            manual_opts = json.load(f)
+        existing_symbols = {o["symbol"] for o in options}
+        for m in manual_opts:
+            if m["symbol"] not in existing_symbols:
+                try:
+                    m["dte"] = (date.fromisoformat(m["expiry"]) - date.today()).days
+                except Exception:
+                    m["dte"] = -1
+                options.append(m)
 
     total = (sum(s["value"] for s in stocks)
              + sum(o["market_value"] for o in options)

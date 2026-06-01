@@ -1,0 +1,12 @@
+{
+  "HOOD": {
+    "tier": "T2",
+    "thesis": "Social arb -- retail broker surge on MCP/AI announcement. Structural growth in retail investing.",
+    "exit_trigger": "Mainstream media broadly covers retail broker thesis OR RSI>60"
+  },
+  "TQQQ": {
+    "tier": "NONE",
+    "thesis": "3x leveraged NASDAQ bull ETF -- core speculative position",
+    "exit_trigger": "DEFINE EXIT: set a specific price target or drawdown stop (-15% recommended for leveraged)"
+  }
+}
